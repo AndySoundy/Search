@@ -22,10 +22,11 @@ Alternatively, if you're just curious about the number of lines of Python that y
 
 If your Search is likely to yield a lot of results e.g. Searching for every text file on your computer, then you can output the results to a file like so.
 
-`$ search.py -d=/home/andy -e=.txt -o=My_Python_Files.txt`
+`$ search.py -d=/home/andy -e=.txt -o=My_Text_Files.txt`
 
 That's basically it for your day to day use, but there are a couple of other options that can also be useful.
 * `-i` Indicates a case-insensitive Search, for either text Searches or file name Searches.
+* `-h` Prints out the help message, showing all your options and what each of them does.
 * `-v` Indicates a verbatim Search for file names. Ordinarily a file name Search will return any file with the Search term in it's name, e.g. a Search with `-n=hello` would match with files `hello_there`, `why_hello_there`, and `oh_hello_there`, while a verbatim Search will only match with a perfect name match.
 
 ## Things to do ##
