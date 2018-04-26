@@ -12,14 +12,16 @@ def look_for_text(start_dir, text_string, file_suffix='.py', case_less=False):
             text_string = text_string.lower()
 
         matched = []
-        for root, dirs, files in os.walk(start_dir):
+        for root, _, files in os.walk(start_dir):
             for file_name in files:
-                if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'): #It's the file type you want
+
+                # Is it the file type you want?
+                if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
                     new_name = os.path.join(root, file_name)
                     try:
-                        with open(new_name, "r") as f:
+                        with open(new_name, "r") as open_file:
                             try:
-                                file_lines = f.readlines()
+                                file_lines = open_file.readlines()
                                 for line in file_lines:
                                     if case_less:
                                         line = line.lower()
@@ -56,9 +58,9 @@ def look_for_text_post(res, params):
         if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
             new_name = os.path.join(start_dir, file_name)
             try:
-                with open(new_name, "r") as f:
+                with open(new_name, "r") as open_file:
                     try:
-                        file_lines = f.readlines()
+                        file_lines = open_file.readlines()
                         for line in file_lines:
                             if case_less:
                                 line = line.lower()
@@ -85,12 +87,13 @@ def count_lines(start_dir, name='', file_suffix='.*', case_less=False, verbatim=
             name = name.lower()
 
         num_lines = 0
-        for root, dirs, files in os.walk(start_dir):
+        for root, _, files in os.walk(start_dir):
             for file_name in files:
                 if case_less:
                     file_name = file_name.lower()
 
-                if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'): #It's the file type you want
+                # Is it the file type you want?
+                if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
                     if name == '' or\
                         verbatim and file_name == name or\
                         verbatim and len(file_name) > len(file_suffix) and file_name[:-len(file_suffix)] == name or\
@@ -99,9 +102,9 @@ def count_lines(start_dir, name='', file_suffix='.*', case_less=False, verbatim=
                         # Matched file
                         new_name = os.path.join(root, file_name)
                         try:
-                            with open(new_name, "r") as f:
+                            with open(new_name, "r") as open_file:
                                 try:
-                                    file_lines = f.readlines()
+                                    file_lines = open_file.readlines()
                                     num_lines += len(file_lines)
                                 except UnicodeDecodeError:
                                     #Can't decode files into a string, e.g. image file
@@ -117,8 +120,8 @@ def count_lines(start_dir, name='', file_suffix='.*', case_less=False, verbatim=
         return
 
 def count_lines_post(res, params):
-    '''Adds up lines from matched files, add lines from any more matches and return the total lines'''
-   
+    '''Adds up lines from matched files and add lines from any more matches'''
+
     # Unpack the params into something sensible
     files, start_dir, name, file_suffix, case_less, verbatim = params
 
@@ -132,7 +135,8 @@ def count_lines_post(res, params):
         if case_less:
             file_name = file_name.lower()
 
-        if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'): #It's the file type you want
+        # Is it the file type you want?
+        if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
             if name == '' or\
                 verbatim and file_name == name or\
                 verbatim and len(file_name) > len(file_suffix) and file_name[:-len(file_suffix)] == name or\
@@ -141,9 +145,9 @@ def count_lines_post(res, params):
                 # Matched file
                 new_name = os.path.join(start_dir, file_name)
                 try:
-                    with open(new_name, "r") as f:
+                    with open(new_name, "r") as open_file:
                         try:
-                            file_lines = f.readlines()
+                            file_lines = open_file.readlines()
                             num_lines += len(file_lines)
                         except UnicodeDecodeError:
                             #Can't decode files into a string, e.g. image file
@@ -164,12 +168,12 @@ def look_for_file(start_dir, name, file_suffix='.*', case_less=False, verbatim=F
             name = name.lower()
 
         matched = []
-        for root, dirs, files in os.walk(start_dir):
+        for root, _, files in os.walk(start_dir):
             for file_name in files:
                 if case_less:
                     file_name = file_name.lower()
 
-                #For most searches .* is used, therefore put that first and avoid checking the suffix
+                #For most searches .* is used, so put that first and avoid checking the suffix
                 if (file_suffix == '.*') or (file_name[-len(file_suffix):] == file_suffix):
                     #Verbatim searches only match for file_names that are exactly right
                     if verbatim and file_name == name or\
@@ -211,7 +215,7 @@ def look_for_file_type(start_dir, file_suffix):
     '''Check the given files and append files with matching extensions to res before returning'''
     try:
         matched = []
-        for root, dirs, files in os.walk(start_dir):
+        for root, _, files in os.walk(start_dir):
             for file_name in files:
                 if file_name[-len(file_suffix):] == file_suffix:
                     matched += ['Root: '+str(root)+'. File name: '+file_name]
@@ -300,7 +304,7 @@ def save_result(matched_list, output_file):
     '''Save the search result in the given file'''
 
     try:
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w') as open_file:
             #For count lines results
             if isinstance(matched_list, int):
                 #It's a small thing to add the non-plural
@@ -315,30 +319,10 @@ def save_result(matched_list, output_file):
                     if isinstance(entry, list):
                         for sub_entry in entry:
                             if len(sub_entry) > 0:
-                                f.write(sub_entry + '\n')
+                                open_file.write(sub_entry + '\n')
                                 num_matches += 1
                     else:
-                        f.write(entry)
-                        num_matches += 1
-        print('Results saved to: {}'.format(output_file))
-    except PermissionError:
-        print('PermissionError during save. Save somewhere else or run as admin.')
-
-    try:
-        with open(output_file, 'w') as f:
-            #For count lines results
-            if isinstance(matched_list, int):
-                f.write('Matched files had {} lines.'.format(matched_list))
-            else:
-                num_matches = 0
-                for entry in matched_list:
-                    if isinstance(entry, list):
-                        for sub_entry in entry:
-                            if len(sub_entry) > 0:
-                                f.write(sub_entry + '\n')
-                                num_matches += 1
-                    else:
-                        f.write(entry)
+                        open_file.write(entry)
                         num_matches += 1
         print('Results saved to: {}'.format(output_file))
     except PermissionError:
@@ -356,15 +340,15 @@ def extract_parameter(search_str, arguments):
                 extended_arg = extended_arg[1:]
 
             # And get rid of any trailing stuff
-            for n, ch in enumerate(extended_arg):
-                if ch == '-':
-                    extended_arg = extended_arg[:n]
+            for num, char in enumerate(extended_arg):
+                if char == '-':
+                    extended_arg = extended_arg[:num]
                     break
 
-                elif ch == ' ' and n < len(extended_arg) - 1 and extended_arg[n+1] == '-':
-                    extended_arg = extended_arg[:n]
+                elif char == ' ' and num < len(extended_arg) - 1 and extended_arg[num+1] == '-':
+                    extended_arg = extended_arg[:num]
 
-                elif ch == ' ' and n == len(extended_arg) - 1:
+                elif char == ' ' and num == len(extended_arg) - 1:
                     extended_arg = extended_arg[:-1]
 
             break
