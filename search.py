@@ -260,6 +260,7 @@ def param_maker(start_dir, params, max_dirs=cpu_count()*10):
 
         # Now look in the new subdirectory for new files and directories
         for thing in os.listdir(new_dir):
+            joined_thing = os.path.join(new_dir, thing)
 
             if os.path.isfile(joined_thing):
                 files += [joined_thing]
