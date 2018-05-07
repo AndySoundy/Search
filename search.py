@@ -236,19 +236,38 @@ def look_for_file_type_post(res, params):
 
     return res
 
-def param_maker(start_dir, params):
+def param_maker(start_dir, params, max_dirs=cpu_count()):
     '''Prepares the thread_params and post_thread_params for pool_processor'''
 
     # Get the starting directories to feed to the thread function
     files = []
     thread_params = []
+
+    # Initially just search start_dir
     for thing in os.listdir(start_dir):
         joined_thing = os.path.join(start_dir, thing)
+
         if os.path.isfile(joined_thing):
             files += [joined_thing]
         else:
             new_param = [joined_thing] + params
             thread_params += [tuple(new_param)]
+
+    # Now if you need to, go further down the directory tree to get more tasks
+    while len(thread_params) > 0 and len(thread_params) < max_dirs:
+        new_dir = thread_params[0][0][0]
+        thread_params = thread_params[1:]  # If you keep this you'll count files twice
+
+        # Now look in the new subdirectory for new files and directories
+        for thing in os.listdir(new_dir):
+
+            if os.path.isfile(joined_thing):
+                files += [joined_thing]
+            else:
+                new_param = [joined_thing] + params
+                thread_params += [tuple(new_param)]
+
+    print('thread_params length = {}'.format(len(thread_params)))
 
     # Now get the files to feed to the post thread function
     post_thread_param = tuple([files, start_dir] + params)
