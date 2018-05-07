@@ -236,7 +236,7 @@ def look_for_file_type_post(res, params):
 
     return res
 
-def param_maker(start_dir, params, max_dirs=cpu_count()):
+def param_maker(start_dir, params, max_dirs=cpu_count()*10):
     '''Prepares the thread_params and post_thread_params for pool_processor'''
 
     # Get the starting directories to feed to the thread function
@@ -255,7 +255,7 @@ def param_maker(start_dir, params, max_dirs=cpu_count()):
 
     # Now if you need to, go further down the directory tree to get more tasks
     while len(thread_params) > 0 and len(thread_params) < max_dirs:
-        new_dir = thread_params[0][0][0]
+        new_dir = thread_params[0][0]
         thread_params = thread_params[1:]  # If you keep this you'll count files twice
 
         # Now look in the new subdirectory for new files and directories
