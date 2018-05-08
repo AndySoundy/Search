@@ -1,4 +1,4 @@
-'''Command line tool that uses a thread pool to parrallelise searches'''
+'''Command line tool that uses a process pool to parrallelise searches'''
 
 import os
 import sys
