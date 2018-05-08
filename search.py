@@ -5,7 +5,7 @@ import sys
 from time import time
 from multiprocessing import Pool, cpu_count, freeze_support
 
-def look_for_text(start_dir, text_string, file_suffix='.py', case_less=False):
+def look_for_text(start_dir, text_string, file_suffix='.py', case_less=False, extra_files=None):
     '''Recursively walks through start_dir, printing files that have text_string in'''
     try:
         if case_less:
@@ -20,6 +20,32 @@ def look_for_text(start_dir, text_string, file_suffix='.py', case_less=False):
                     new_name = os.path.join(root, file_name)
                     try:
                         with open(new_name, "r") as open_file:
+                            try:
+                                file_lines = open_file.readlines()
+                                for line in file_lines:
+                                    if case_less:
+                                        line = line.lower()
+
+                                    if text_string in line:
+                                        matched += [text_string + " found in "+new_name+"."]
+                                        break #Only list the file once total, not for every entry
+                            except UnicodeDecodeError:
+                                #Can't decode files into a string, e.g. image file
+                                pass
+                    except PermissionError:
+                        #You are not allowed
+                        pass
+                    except FileNotFoundError:
+                        #I've only encountered this for the Linux subsystem files on Windows 10
+                        pass
+
+        # Search any extra files given
+        if extra_files:
+            for file_name in extra_files:
+                # Is it the file type you want?
+                if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
+                    try:
+                        with open(file_name, "r") as open_file:
                             try:
                                 file_lines = open_file.readlines()
                                 for line in file_lines:
@@ -236,7 +262,7 @@ def look_for_file_type_post(res, params):
 
     return res
 
-def param_maker(start_dir, params, max_dirs=cpu_count()*10):
+def param_maker(start_dir, params, max_dirs=cpu_count()*2):
     '''Prepares the thread_params and post_thread_params for pool_processor'''
 
     # Get the starting directories to feed to the thread function
@@ -254,7 +280,7 @@ def param_maker(start_dir, params, max_dirs=cpu_count()*10):
             thread_params += [tuple(new_param)]
 
     # Now if you need to, go further down the directory tree to get more tasks
-    while len(thread_params) > 0 and len(thread_params) < max_dirs:
+    while thread_params and len(thread_params) < max_dirs:
         new_dir = thread_params[0][0]
         thread_params = thread_params[1:]  # If you keep this you'll count files twice
 
@@ -268,12 +294,31 @@ def param_maker(start_dir, params, max_dirs=cpu_count()*10):
                 new_param = [joined_thing] + params
                 thread_params += [tuple(new_param)]
 
-    print('thread_params length = {}'.format(len(thread_params)))
+    # If there are no subdirectories
+    if not thread_params:
+        thread_params = [tuple([start_dir] + params)]
 
-    # Now get the files to feed to the post thread function
-    post_thread_param = tuple([files, start_dir] + params)
+    # Now split files up and add it evenly to thread_params
+    thread_param_len = len(thread_params) # No need to do this for every file
+    param_len = len(params)
+    start_time = time()
+    for file_num, file_name in enumerate(files):
+        thread_num = file_num % thread_param_len
 
-    return thread_params, post_thread_param
+        # If it's the first extra file
+        if len(thread_params[thread_num]) == param_len + 1:
+            thread_params[thread_num] = thread_params[thread_num] + ([file_name],)
+
+        else:
+            files = thread_params[thread_num][-1]
+            files += [file_name]
+            thread_params[thread_num] = thread_params[thread_num][:-1] + (files)
+    print('param pairing took {} seconds'.format(time() - start_time))
+    return thread_params
+
+def do_nothing(res, params):
+    '''Just return res as it is'''
+    return res
 
 def pool_processor(thread_fntn, thread_params, post_thread_fntn, post_params):
     '''Runs a pool of threads on thread_fntn then runs post_thread_fntn'''
@@ -307,7 +352,7 @@ def print_result(matched_list):
         for entry in matched_list:
             if isinstance(entry, list):
                 for sub_entry in entry:
-                    if len(sub_entry) > 0:
+                    if sub_entry:
                         print(sub_entry)
                         num_matches += 1
             else:
@@ -338,7 +383,7 @@ def save_result(matched_list, output_file):
                 for entry in matched_list:
                     if isinstance(entry, list):
                         for sub_entry in entry:
-                            if len(sub_entry) > 0:
+                            if sub_entry:
                                 open_file.write(sub_entry + '\n')
                                 num_matches += 1
                     else:
@@ -456,14 +501,16 @@ def main():
                                                         verbatim])
         result = pool_processor(count_lines, thread_params,\
                                 count_lines_post, post_thread_params)
-        #result = count_lines_pool(search_dir, text, file_ext, case_insensitive)
 
     # Search for text string
     elif text:
-        thread_params, post_thread_params = param_maker(search_dir,\
-                                                        [text, file_ext, case_insensitive])
-        result = pool_processor(look_for_text, thread_params,\
-                                look_for_text_post, post_thread_params)
+        thread_params = param_maker(search_dir,\
+                                    [text, file_ext, case_insensitive])
+        result = pool_processor(look_for_text, thread_params, do_nothing, [])
+        # thread_params, post_thread_params = param_maker(search_dir,\
+        #                                                 [text, file_ext, case_insensitive])
+        # result = pool_processor(look_for_text, thread_params,\
+        #                         look_for_text_post, post_thread_params)
 
     # Search for file name
     elif file_name:
