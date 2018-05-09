@@ -5,86 +5,23 @@ import sys
 from time import time
 from multiprocessing import Pool, cpu_count, freeze_support
 
-def look_for_text(start_dir, text_string, file_suffix='.py', case_less=False, extra_files=None):
-    '''Recursively walks through start_dir, printing files that have text_string in'''
-    try:
-        if case_less:
-            text_string = text_string.lower()
+def text_search_file_list(files, text_string, file_suffix, case_less, root=None):
+    '''Takes the given file list and returns a list of files with the text string inside'''
 
-        matched = []
-        for root, _, files in os.walk(start_dir):
-            for file_name in files:
-
-                # Is it the file type you want?
-                if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
-                    new_name = os.path.join(root, file_name)
-                    try:
-                        with open(new_name, "r") as open_file:
-                            try:
-                                file_lines = open_file.readlines()
-                                for line in file_lines:
-                                    if case_less:
-                                        line = line.lower()
-
-                                    if text_string in line:
-                                        matched += [text_string + " found in "+new_name+"."]
-                                        break #Only list the file once total, not for every entry
-                            except UnicodeDecodeError:
-                                #Can't decode files into a string, e.g. image file
-                                pass
-                    except PermissionError:
-                        #You are not allowed
-                        pass
-                    except FileNotFoundError:
-                        #I've only encountered this for the Linux subsystem files on Windows 10
-                        pass
-
-        # Search any extra files given
-        if extra_files:
-            for file_name in extra_files:
-                # Is it the file type you want?
-                if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
-                    try:
-                        with open(file_name, "r") as open_file:
-                            try:
-                                file_lines = open_file.readlines()
-                                for line in file_lines:
-                                    if case_less:
-                                        line = line.lower()
-
-                                    if text_string in line:
-                                        matched += [text_string + " found in "+new_name+"."]
-                                        break #Only list the file once total, not for every entry
-                            except UnicodeDecodeError:
-                                #Can't decode files into a string, e.g. image file
-                                pass
-                    except PermissionError:
-                        #You are not allowed
-                        pass
-                    except FileNotFoundError:
-                        #I've only encountered this for the Linux subsystem files on Windows 10
-                        pass
-
-        return matched
-    except KeyboardInterrupt:
-        return
-
-def look_for_text_post(res, params):
-    '''Look for the search text in the given files and append matches to res'''
-
-    # Unpack the params into something sensible
-    files, start_dir, text_string, file_suffix, case_less = params
-
-    # Now check the given files
+    # For case-insensitive searches we use the lower case by convention
     if case_less:
         text_string = text_string.lower()
 
+    # Now search the given files
+    matched = []
     for file_name in files:
-        #If it's the wrong file type, just skip it
+
+        # Is it the file type you want?
         if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
-            new_name = os.path.join(start_dir, file_name)
+            if root:
+                file_name = os.path.join(root, file_name)
             try:
-                with open(new_name, "r") as open_file:
+                with open(file_name, "r") as open_file:
                     try:
                         file_lines = open_file.readlines()
                         for line in file_lines:
@@ -92,8 +29,8 @@ def look_for_text_post(res, params):
                                 line = line.lower()
 
                             if text_string in line:
-                                res += [text_string + " found in "+new_name+"."]
-                                break #Only list the file once total, not once for every entry
+                                matched += [text_string + " found in "+file_name+"."]
+                                break #Only list the file once total, not for every entry
                     except UnicodeDecodeError:
                         #Can't decode files into a string, e.g. image file
                         pass
@@ -104,59 +41,33 @@ def look_for_text_post(res, params):
                 #I've only encountered this for the Linux subsystem files on Windows 10
                 pass
 
-    return res
+    return matched
 
-def count_lines(start_dir, name='', file_suffix='.*', case_less=False, verbatim=False):
+def look_for_text(start_dir, text_string, file_suffix='.py', case_less=False, extra_files=None):
     '''Recursively walks through start_dir, printing files that have text_string in'''
     try:
-        if case_less:
-            name = name.lower()
-
-        num_lines = 0
+        # Recursively search through start_dir
+        matched = []
         for root, _, files in os.walk(start_dir):
-            for file_name in files:
-                if case_less:
-                    file_name = file_name.lower()
+            matched += text_search_file_list(files, text_string, file_suffix, case_less, root=root)
 
-                # Is it the file type you want?
-                if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
-                    if name == '' or\
-                        verbatim and file_name == name or\
-                        verbatim and len(file_name) > len(file_suffix) and file_name[:-len(file_suffix)] == name or\
-                        not verbatim and name in file_name:
+        # Search any extra files given
+        if extra_files:
+            matched += text_search_file_list(extra_files, text_string, file_suffix, case_less)
 
-                        # Matched file
-                        new_name = os.path.join(root, file_name)
-                        try:
-                            with open(new_name, "r") as open_file:
-                                try:
-                                    file_lines = open_file.readlines()
-                                    num_lines += len(file_lines)
-                                except UnicodeDecodeError:
-                                    #Can't decode files into a string, e.g. image file
-                                    pass
-                        except PermissionError:
-                            #You are not allowed
-                            pass
-                        except FileNotFoundError:
-                            #I've only encountered this for the Linux subsystem files on Windows 10
-                            pass
-        return num_lines
+        return matched
     except KeyboardInterrupt:
         return
 
-def count_lines_post(res, params):
-    '''Adds up lines from matched files and add lines from any more matches'''
+def count_lines_file_list(files, name, file_suffix, case_less, verbatim, root=None):
+    '''Takes the given file list and returns the number of lines in matched files'''
 
-    # Unpack the params into something sensible
-    files, start_dir, name, file_suffix, case_less, verbatim = params
+    # For case-insensitive searches we use the lower case by convention
+    if case_less:
+        name = name.lower()
 
-    # Sum the results
+    # Now start counting
     num_lines = 0
-    for num in res:
-        num_lines += num
-
-    # And add any further matches
     for file_name in files:
         if case_less:
             file_name = file_name.lower()
@@ -169,9 +80,10 @@ def count_lines_post(res, params):
                 not verbatim and name in file_name:
 
                 # Matched file
-                new_name = os.path.join(start_dir, file_name)
+                if root:
+                    file_name = os.path.join(root, file_name)
                 try:
-                    with open(new_name, "r") as open_file:
+                    with open(file_name, "r") as open_file:
                         try:
                             file_lines = open_file.readlines()
                             num_lines += len(file_lines)
@@ -187,7 +99,57 @@ def count_lines_post(res, params):
 
     return num_lines
 
-def look_for_file(start_dir, name, file_suffix='.*', case_less=False, verbatim=False):
+def count_lines(start_dir, name='', file_suffix='.*', case_less=False, verbatim=False,
+                extra_files=None):
+    '''Recursively walks through start_dir, printing files that have text_string in'''
+    try:
+        if case_less:
+            name = name.lower()
+
+        num_lines = 0
+        for root, _, files in os.walk(start_dir):
+            num_lines += count_lines_file_list(files, name, file_suffix, case_less, verbatim, root)
+
+        if extra_files:
+            num_lines += count_lines_file_list(extra_files, name, file_suffix, case_less, verbatim)
+
+        return num_lines
+    except KeyboardInterrupt:
+        return
+
+def file_search_file_list(files, name, file_suffix, case_less, verbatim, root=None):
+    '''Takes the given file list and returns a list of matched files'''
+
+    # For case-insensitive searches we use the lower case by convention
+    if case_less:
+        name = name.lower()
+
+    # Now search the given files
+    matched = []
+    for file_name in files:
+
+        # We just want to look at the file name, not the directory
+        if root:
+            directory = os.path.dirname(file_name)
+            file_name = os.path.basename(file_name)
+
+        if case_less:
+            file_name = file_name.lower()
+
+        #For most searches .* is used, so put that first and avoid checking the suffix
+        if (file_suffix == '.*') or (file_name[-len(file_suffix):] == file_suffix):
+            #Verbatim searches only match for file_names that are exactly right
+            if verbatim and file_name == name or\
+               verbatim and len(file_name) > len(file_suffix) and file_name[:-len(file_suffix)] == name or\
+               not verbatim and name in file_name:
+                if root:
+                    matched += ['Root: {}. File name: {}'.format(root, file_name)]
+                else:
+                    matched += ['Root: {}. File name: {}'.format(directory, file_name)]
+
+    return matched
+
+def look_for_file(start_dir, name, file_suffix='.*', case_less=False, verbatim=False, extra_files=None):
     '''Recursively walks through start_dir, printing files that have text_string in the name'''
     try:
         if case_less:
@@ -195,72 +157,34 @@ def look_for_file(start_dir, name, file_suffix='.*', case_less=False, verbatim=F
 
         matched = []
         for root, _, files in os.walk(start_dir):
-            for file_name in files:
-                if case_less:
-                    file_name = file_name.lower()
+            matched += file_search_file_list(files, name, file_suffix, case_less, verbatim, root)
 
-                #For most searches .* is used, so put that first and avoid checking the suffix
-                if (file_suffix == '.*') or (file_name[-len(file_suffix):] == file_suffix):
-                    #Verbatim searches only match for file_names that are exactly right
-                    if verbatim and file_name == name or\
-                       verbatim and len(file_name) > len(file_suffix) and file_name[:-len(file_suffix)] == name or\
-                       not verbatim and name in file_name:
-                        matched += ['Root: '+str(root)+'. File name: '+file_name]
+        if extra_files:
+            matched += file_search_file_list(extra_files, name, file_suffix, case_less, verbatim)
 
         return matched
     except KeyboardInterrupt:
         return
 
-def look_for_file_post(res, params):
-    '''Check the given files and append any matches to res before returning'''
-
-    # Unpack the params into something sensible
-    files, start_dir, name, file_suffix, case_less, verbatim = params
-
-    # I'm still not sure of the usefulness of case insensitive file searches
-    # but if you do select caseless search then this is what you'd expect
-    if case_less:
-        name = name.lower()
-
-    for file_name in files:
-        if case_less:
-            file_name = file_name.lower()
-
-        #For most searches .* is used, therefore put that first and avoid checking the suffix
-        if (file_suffix == '.*') or (file_name[-len(file_suffix):] == file_suffix):
-            #Verbatim searches only match for file_names that are exactly right
-            if verbatim and file_name == name:
-                res += ['Root: '+str(start_dir)+'. File name: '+file_name]
-
-            elif not verbatim and name in file_name:
-                res += ['Root: '+str(start_dir)+'. File name: '+file_name]
-
-    return res
-
-def look_for_file_type(start_dir, file_suffix):
+def look_for_file_type(start_dir, file_suffix, extra_files=None):
     '''Check the given files and append files with matching extensions to res before returning'''
     try:
         matched = []
         for root, _, files in os.walk(start_dir):
             for file_name in files:
                 if file_name[-len(file_suffix):] == file_suffix:
-                    matched += ['Root: '+str(root)+'. File name: '+file_name]
+                    matched += ['Root: {}. File name: {}'.format(root, file_name)]
+
+        if extra_files:
+            for file_name in extra_files:
+                if file_name[-len(file_suffix):] == file_suffix:
+                    directory = os.path.dirname(file_name)
+                    file_name = os.path.basename(file_name)
+                    matched += ['Root: {}. File name: {}'.format(directory, file_name)]
 
         return matched
     except KeyboardInterrupt:
         return
-
-def look_for_file_type_post(res, params):
-    '''Check the given files and append files with matching extensions to res before returning'''
-
-    # Unpack the params into something sensible
-    files, start_dir, file_suffix = params
-
-    for file_name in files:
-        if file_name[-len(file_suffix):] == file_suffix:
-            res += ['Root: '+str(start_dir)+'. File name: '+file_name]
-
-    return res
 
 def param_maker(start_dir, params, max_dirs=cpu_count()*2):
     '''Prepares the thread_params and post_thread_params for pool_processor'''
@@ -316,11 +240,7 @@ def param_maker(start_dir, params, max_dirs=cpu_count()*2):
     print('param pairing took {} seconds'.format(time() - start_time))
     return thread_params
 
-def do_nothing(res, params):
-    '''Just return res as it is'''
-    return res
-
-def pool_processor(thread_fntn, thread_params, post_thread_fntn, post_params):
+def pool_processor(thread_fntn, thread_params):
     '''Runs a pool of threads on thread_fntn then runs post_thread_fntn'''
 
     # Only the main thread handles KeyboardInterrupts, not the child threads
@@ -332,20 +252,18 @@ def pool_processor(thread_fntn, thread_params, post_thread_fntn, post_params):
             print('KeyboardInterrupt, terminating search')
             return
 
-    # Almost done
-    res = post_thread_fntn(res, post_params)
-
     return res
 
 def print_result(matched_list):
     '''Sensibly print the results of the search'''
+
     #For count lines results
-    if isinstance(matched_list, int):
+    if matched_list and isinstance(matched_list[0], int):
         #It's a small thing to add the non-plural
         lines = 'lines'
         if matched_list == 1:
             lines = 'line'
-        print('Matched files had {} {}.'.format(matched_list, lines))
+        print('Matched files had {} {}.'.format(sum(matched_list), lines))
 
     else:
         num_matches = 0
@@ -496,35 +414,23 @@ def main():
     if count:
         if file_name is None: # Need an empty string for search, not None
             file_name = ''
-        thread_params, post_thread_params = param_maker(search_dir,\
-                                                        [file_name, file_ext, case_insensitive,\
-                                                        verbatim])
-        result = pool_processor(count_lines, thread_params,\
-                                count_lines_post, post_thread_params)
+        thread_params = param_maker(search_dir, [file_name, file_ext, case_insensitive, verbatim])
+        result = pool_processor(count_lines, thread_params)
 
     # Search for text string
     elif text:
-        thread_params = param_maker(search_dir,\
-                                    [text, file_ext, case_insensitive])
-        result = pool_processor(look_for_text, thread_params, do_nothing, [])
-        # thread_params, post_thread_params = param_maker(search_dir,\
-        #                                                 [text, file_ext, case_insensitive])
-        # result = pool_processor(look_for_text, thread_params,\
-        #                         look_for_text_post, post_thread_params)
+        thread_params = param_maker(search_dir, [text, file_ext, case_insensitive])
+        result = pool_processor(look_for_text, thread_params)
 
     # Search for file name
     elif file_name:
-        thread_params, post_thread_params = param_maker(search_dir, \
-                                                        [file_name, file_ext, case_insensitive,\
-                                                        verbatim])
-        result = pool_processor(look_for_file, thread_params,\
-                                look_for_file_post, post_thread_params)
+        thread_params = param_maker(search_dir, [file_name, file_ext, case_insensitive, verbatim])
+        result = pool_processor(look_for_file, thread_params)
 
     # Search for file type
     elif file_ext != '.*':
-        thread_params, post_thread_params = param_maker(search_dir, [file_ext])
-        result = pool_processor(look_for_file_type, thread_params,\
-                                look_for_file_type_post, post_thread_params)
+        thread_params = param_maker(search_dir, [file_ext])
+        result = pool_processor(look_for_file_type, thread_params)
 
     # User error
     else:
