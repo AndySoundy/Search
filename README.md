@@ -33,4 +33,4 @@ That's basically it for your day to day use, but there are a couple of other opt
 * Implement text find and replace option.
 * ~~Implement a more equitable division of the workload than just what directories happen to be in the top branch.~~
 * ~~Add an optional parameter `files` to let the Pool processes work on the files in the top directory(s) instead of doing serial processing after the Pool processesors are killed.~~
-* Fix param_maker so if you "bottom out" the directory tree, you are not going to cause an error.
+* ~~Fix param_maker so if you "bottom out" the directory tree, you are not going to cause an error.~~

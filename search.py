@@ -30,15 +30,18 @@ def text_search_file_list(files, text_string, file_suffix, case_less, root=None)
 
                             if text_string in line:
                                 matched += [text_string + " found in "+file_name+"."]
-                                break #Only list the file once total, not for every entry
+                                break # Only list the file once total, not for every entry
                     except UnicodeDecodeError:
-                        #Can't decode files into a string, e.g. image file
+                        # Can't decode files into a string, e.g. image file
                         pass
             except PermissionError:
-                #You are not allowed
+                # You are not allowed
                 pass
             except FileNotFoundError:
-                #I've only encountered this for the Linux subsystem files on Windows 10
+                # I've only encountered this for the Linux subsystem files on Windows 10
+                pass
+            except OSError:
+                # I've only encountered this on Linux systems when encountering sockets
                 pass
 
     return matched
@@ -95,6 +98,9 @@ def count_lines_file_list(files, name, file_suffix, case_less, verbatim, root=No
                     pass
                 except FileNotFoundError:
                     #I've only encountered this for the Linux subsystem files on Windows 10
+                    pass
+                except OSError:
+                    # I've only encountered this on Linux systems when encountering sockets
                     pass
 
     return num_lines
@@ -225,7 +231,6 @@ def param_maker(start_dir, params, max_dirs=cpu_count()*2):
     # Now split files up and add it evenly to thread_params
     thread_param_len = len(thread_params) # No need to do this for every file
     param_len = len(params)
-    start_time = time()
     for file_num, file_name in enumerate(files):
         thread_num = file_num % thread_param_len
 
@@ -237,7 +242,7 @@ def param_maker(start_dir, params, max_dirs=cpu_count()*2):
             files = thread_params[thread_num][-1]
             files += [file_name]
             thread_params[thread_num] = thread_params[thread_num][:-1] + (files)
-    print('param pairing took {} seconds'.format(time() - start_time))
+
     return thread_params
 
 def pool_processor(thread_fntn, thread_params):
