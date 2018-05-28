@@ -243,7 +243,7 @@ def param_maker(start_dir, params, max_dirs=cpu_count()*2):
             else:
                 files = thread_params[thread_num][-1]
                 files += [file_name]
-                thread_params[thread_num] = thread_params[thread_num][:-1] + (files)
+                thread_params[thread_num] = thread_params[thread_num][:-1] + (files,)
     return thread_params
 
 def pool_processor(thread_fntn, thread_params):
