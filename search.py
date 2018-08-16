@@ -331,8 +331,9 @@ def extract_parameter(search_str, arguments):
             # And get rid of any trailing stuff
             for num, char in enumerate(extended_arg):
                 if char == '-':
-                    extended_arg = extended_arg[:num]
-                    break
+                    if num == 0 or num > len(extended_arg) or extended_arg[num - 1] == ' ':
+                        extended_arg = extended_arg[:num]
+                        break
 
                 elif char == ' ' and num < len(extended_arg) - 1 and extended_arg[num+1] == '-':
                     extended_arg = extended_arg[:num]
@@ -341,6 +342,7 @@ def extract_parameter(search_str, arguments):
                     extended_arg = extended_arg[:-1]
 
             break
+
     return extended_arg
 
 def main():
@@ -364,8 +366,8 @@ def main():
         print('-v or --verbatim         Look for exactly this file name')
 
     # Get the search directory
-    if '-d' in search_str or '--dir' in search_str:
-        search_dir = extract_parameter(search_str, ['-d', '--dir'])
+    if ' -d' in search_str or ' --dir' in search_str:
+        search_dir = extract_parameter(search_str, [' -d', ' --dir'])
         if not os.path.isdir(search_dir):
             print('Input directory "{}" is invalid.'.format(search_dir))
 
@@ -375,40 +377,40 @@ def main():
         search_dir = '/'  # Unix default search directory
 
     # Get the file extension
-    if '-e' in search_str or '--file-extension' in search_str:
-        file_ext = extract_parameter(search_str, ['-e', '--file-extension'])
+    if ' -e' in search_str or ' --file-extension' in search_str:
+        file_ext = extract_parameter(search_str, [' -e', ' --file-extension'])
     else:
         file_ext = '.*'
 
     # Get the text string to search for
     text = None
-    if '-t' in search_str or '--text' in search_str:
-        text = extract_parameter(search_str, ['-t', '--text'])
+    if ' -t' in search_str or ' --text' in search_str:
+        text = extract_parameter(search_str, [' -t', ' --text'])
 
     # Get the file name to search for
     file_name = None
-    if '-n' in search_str or '--file-name' in search_str:
-        file_name = extract_parameter(search_str, ['-n', '--file-name'])
+    if ' -n' in search_str or ' --file-name' in search_str:
+        file_name = extract_parameter(search_str, [' -n', ' --file-name'])
 
     # Is it a case insensitive search?
-    if '-i' in search_str or '--case-insensitive' in search_str:
+    if ' -i' in search_str or ' --case-insensitive' in search_str:
         case_insensitive = True
     else:
         case_insensitive = False
 
     # Are we counting lines?
-    if '-c' in search_str or '--count-lines' in search_str:
+    if ' -c' in search_str or ' --count-lines' in search_str:
         count = True
     else:
         count = False
 
     # Are we saving to a file?
     output_file = None
-    if '-o' in search_str or '--output-file' in search_str:
-        output_file = extract_parameter(search_str, ['-o', '--output-file'])
+    if ' -o' in search_str or ' --output-file' in search_str:
+        output_file = extract_parameter(search_str, [' -o', ' --output-file'])
 
     # Are we looking for exactly the given file type?
-    if '-v' in search_str or '--verbatim' in search_str:
+    if ' -v' in search_str or ' --verbatim' in search_str:
         verbatim = True
     else:
         verbatim = False
