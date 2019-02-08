@@ -135,7 +135,7 @@ def file_search_file_list(files, name, file_suffix, case_less, verbatim, root=No
     for file_name in files:
 
         # We just want to look at the file name, not the directory
-        if root:
+        if not root:
             directory = os.path.dirname(file_name)
             file_name = os.path.basename(file_name)
 
