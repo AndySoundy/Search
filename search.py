@@ -4,6 +4,7 @@ import os
 import sys
 from time import time
 from multiprocessing import Pool, cpu_count, freeze_support
+import mmap
 
 def text_search_file_list(files, text_string, file_suffix, case_less, root=None):
     '''Takes the given file list and returns a list of files with the text string inside'''
@@ -12,12 +13,15 @@ def text_search_file_list(files, text_string, file_suffix, case_less, root=None)
     if case_less:
         text_string = text_string.lower()
 
+    # In case we don't care about the file type
+    all_files = (file_suffix == '.*')
+
     # Now search the given files
     matched = []
     for file_name in files:
 
         # Is it the file type you want?
-        if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
+        if (all_files) or (file_name[-len(file_suffix):] == file_suffix):
             if root:
                 file_name = os.path.join(root, file_name)
             try:
@@ -69,6 +73,12 @@ def count_lines_file_list(files, name, file_suffix, case_less, verbatim, root=No
     if case_less:
         name = name.lower()
 
+    # In case we don't care about the file type
+    all_files = (file_suffix == '.*')
+
+    # In case we don't care about the file name
+    all_names = (name == '')
+
     # Now start counting
     num_lines = 0
     for file_name in files:
@@ -76,11 +86,11 @@ def count_lines_file_list(files, name, file_suffix, case_less, verbatim, root=No
             file_name = file_name.lower()
 
         # Is it the file type you want?
-        if (file_name[-len(file_suffix):] == file_suffix) or (file_suffix == '.*'):
-            if name == '' or\
+        if (all_files) or (file_name[-len(file_suffix):] == file_suffix):
+            if all_names or\
                 verbatim and file_name == name or\
-                verbatim and len(file_name) > len(file_suffix) and file_name[:-len(file_suffix)] == name or\
-                not verbatim and name in file_name:
+                not verbatim and name in file_name or\
+                verbatim and len(file_name) > len(file_suffix) and file_name[:-len(file_suffix)] == name:
 
                 # Matched file
                 if root:
@@ -88,10 +98,15 @@ def count_lines_file_list(files, name, file_suffix, case_less, verbatim, root=No
                 try:
                     with open(file_name, "r") as open_file:
                         try:
-                            file_lines = open_file.readlines()
-                            num_lines += len(file_lines)
+                            buffy = mmap.mmap(open_file.fileno(), 0)
+                            readline = buffy.readline
+                            while readline():
+                                num_lines += 1
                         except UnicodeDecodeError:
                             #Can't decode files into a string, e.g. image file
+                            pass
+                        except ValueError:
+                            #Can't mmap an empty file
                             pass
                 except PermissionError:
                     #You are not allowed
@@ -130,6 +145,9 @@ def file_search_file_list(files, name, file_suffix, case_less, verbatim, root=No
     if case_less:
         name = name.lower()
 
+    # In case we don't care about the file type
+    all_files = (file_suffix == '.*')
+
     # Now search the given files
     matched = []
     for file_name in files:
@@ -142,8 +160,8 @@ def file_search_file_list(files, name, file_suffix, case_less, verbatim, root=No
         if case_less:
             file_name = file_name.lower()
 
-        #For most searches .* is used, so put that first and avoid checking the suffix
-        if (file_suffix == '.*') or (file_name[-len(file_suffix):] == file_suffix):
+        # If '.*' is used we don't have to check the suffix, so we put that first
+        if (all_files) or (file_name[-len(file_suffix):] == file_suffix):
             #Verbatim searches only match for file_names that are exactly right
             if verbatim and file_name == name or\
                verbatim and len(file_name) > len(file_suffix) and file_name[:-len(file_suffix)] == name or\
