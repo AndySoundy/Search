@@ -307,6 +307,17 @@ def print_result(matched_list):
             word = 'match'
         print('Found {} {} for your search.'.format(num_matches, word))
 
+def trim_line(entry):
+    '''Only save the data when writing to file'''
+    if 'Root: ' in entry:
+        ret_str = entry[6:]
+        file_name_index = ret_str.find('. File name: ')
+        if file_name_index != -1:
+            ret_str = ret_str[:file_name_index] + '\\' + ret_str[file_name_index + 13:]
+        return ret_str
+    else:
+        return entry
+
 def save_result(matched_list, output_file):
     '''Save the search result in the given file'''
 
@@ -316,7 +327,7 @@ def save_result(matched_list, output_file):
             if isinstance(matched_list, int):
                 #It's a small thing to add the non-plural
                 lines = 'lines'
-                if matched_list == 1:
+                if len(matched_list) == 1:
                     lines = 'line'
                 print('Matched files had {} {}.'.format(matched_list, lines))
 
@@ -326,7 +337,8 @@ def save_result(matched_list, output_file):
                     if isinstance(entry, list):
                         for sub_entry in entry:
                             if sub_entry:
-                                open_file.write(sub_entry + '\n')
+                                trimmed_entry = trim_line(sub_entry)
+                                open_file.write(trimmed_entry + '\n')
                                 num_matches += 1
                     else:
                         open_file.write(entry)
